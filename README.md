@@ -1,6 +1,6 @@
 # MyTabs
 
-Lets you implement tabbed browsing on your MyBB forum index — divide your forums into tabs with customizable styling, AJAX or static switching, and per-user default tab preferences.
+Lets you implement tabbed browsing on your MyBB forum. Divide your forums into tabs with customizable styling, AJAX or static switching, and per-user default tab preferences.
 
 ## Requirements
 
@@ -35,9 +35,9 @@ Lets you implement tabbed browsing on your MyBB forum index — divide your foru
 |-----------------|------------------------------------------|
 | Original        | Ethan / FatalMessiah — [MyBBPlugins](http://www.mybbplug.in/s/) |
 | Interim         | FatalMessiah — [UltimateGameModders](http://ultimategamemodders.org/s/) |
-| Current (2026–) | **hisoka** — root@hisoka.lol · [github.com/hisoka-root](https://github.com/hisoka-root) |
+| Current (2026–) | **hisoka** — [github.com/hisoka-root](https://github.com/hisoka-root) |
 
-This plugin was originally created by Ethan at MyBBPlugins and later maintained by FatalMessiah. The current maintainer has rewritten the codebase for compatibility with modern MyBB and PHP, resetting the version to **1.0.0**. We gratefully acknowledge all prior work.
+This plugin was originally created by Ethan at MyBBPlugins and later maintained by FatalMessiah. I have rewritten the codebase for compatibility with modern MyBB and PHP, resetting the version to **1.0.0**. I gratefully acknowledge all prior work.
 
 ## License
 
