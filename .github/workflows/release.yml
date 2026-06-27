@@ -1,0 +1,150 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+          else
+            VERSION=$(grep -oP '## \[\K[^\]]+' CHANGELOG.md | head -1)
+            if [ -z "$VERSION" ]; then
+              echo "No version found in CHANGELOG.md"
+              exit 1
+            fi
+            TAG="v$VERSION"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if release exists
+        id: check
+        continue-on-error: true
+        run: |
+          gh release view "${{ steps.version.outputs.tag }}" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Skip (release already exists)
+        id: skip
+        if: steps.check.outcome == 'success'
+        run: |
+          echo "Release ${{ steps.version.outputs.tag }} already exists, skipping."
+
+      - name: Create and push tag (PR only)
+        if: github.event_name == 'pull_request' && steps.check.outcome != 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+          fi
+
+      - name: Extract changelog from CHANGELOG.md
+        id: extract
+        if: steps.check.outcome != 'success'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHANGELOG=$(awk -v ver="$VERSION" '
+            BEGIN { found = 0 }
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "^## \\[" ver "\\]") { found = 1; next }
+            }
+            /^---/ { if (found) exit }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$CHANGELOG" ]; then
+            echo "No changelog entry found for version $VERSION in CHANGELOG.md"
+            exit 1
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Stage files
+        if: steps.check.outcome != 'success'
+        run: |
+          mkdir -p pkg/inc/plugins
+          mkdir -p pkg/inc/languages/english/admin
+          mkdir -p pkg/jscripts
+          mkdir -p pkg/admin/modules/forum
+
+          cp inc/plugins/mytabs.php                            pkg/inc/plugins/
+          cp inc/languages/english/mytabs.lang.php             pkg/inc/languages/english/
+          cp inc/languages/english/admin/mytabs.lang.php       pkg/inc/languages/english/admin/
+          cp jscripts/mytabs.js                                pkg/jscripts/
+          cp admin/modules/forum/mytabs.php                    pkg/admin/modules/forum/
+          cp README.md         pkg/
+          cp LICENSE           pkg/
+          cp CHANGELOG.md      pkg/
+          cp How-to-install.txt pkg/
+
+      - name: Generate SHA256SUMS
+        if: steps.check.outcome != 'success'
+        run: |
+          cd pkg && find . -type f | sort | xargs sha256sum > ../SHA256SUMS
+
+      - name: Import GPG key
+        if: steps.check.outcome != 'success'
+        run: |
+          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          fi
+        env:
+          GPG_TTY: /dev/null
+
+      - name: Sign SHA256SUMS
+        if: steps.check.outcome != 'success'
+        run: |
+          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            FINGERPRINT=$(gpg --list-secret-keys --with-colons 2>/dev/null | grep '^sec:' | head -1 | cut -d: -f5)
+            if [ -n "$FINGERPRINT" ]; then
+              if [ -n "${{ secrets.GPG_PASSPHRASE }}" ]; then
+                echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$FINGERPRINT" --armor --detach-sign SHA256SUMS
+              else
+                gpg --batch --yes --local-user "$FINGERPRINT" --armor --detach-sign SHA256SUMS
+              fi
+            fi
+          fi
+        env:
+          GPG_TTY: /dev/null
+
+      - name: Create zip
+        if: steps.check.outcome != 'success'
+        run: |
+          cd pkg && zip -r ../mytabs-${{ steps.version.outputs.tag }}.zip .
+
+      - name: Create release
+        if: steps.check.outcome != 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.extract.outputs.changelog }}
+          files: |
+            mytabs-${{ steps.version.outputs.tag }}.zip
+            SHA256SUMS
+            SHA256SUMS.asc
