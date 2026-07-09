@@ -89,6 +89,11 @@
 		echo $form->generate_hidden_field("id", isset($mybb->input['id']) ? $mybb->input['id'] : '');
 		if($mybb->request_method == "post")
 		{
+			if(!isset($mybb->input['my_post_key']) || $mybb->input['my_post_key'] != $mybb->post_code)
+			{
+				flash_message($lang->invalid_post_verify_code2, 'error');
+				admin_redirect("index.php?module=forum-mytabs");
+			}
 			/* Add new tab. */
 			if(!empty($mybb->input['name']))
 			{
@@ -126,7 +131,7 @@
 		$disporder_value = isset($mybb->input['disporder']) ? $mybb->input['disporder'] : 1;
 
 		$form_container->output_row($lang->tab_options_name." <em>*</em>", $lang->tab_options_name_desc, $form->generate_text_box('name', $name_value, array('id' => 'name')));
-		$form_container->output_row($lang->tab_options_forums, $lang->tab_options_forums_desc, $form->generate_forum_select("forums[]", $forums_value, array('multiple' => 1)));
+		$form_container->output_row($lang->tab_options_forums, $lang->tab_options_forums_desc, $form->generate_forum_select("forums[]", $forums_value, array('multiple' => 1, 'size' => 8)));
 		$form_container->output_row($lang->tab_options_style, $lang->tab_options_style_desc, $form->generate_text_area('tab_code', $tab_code_value, array('id' => 'tab_code', 'class' => 'codepress mybb', 'style' => 'width: 100%; height: 256px;')), 'tab_code');
 		$form_container->output_row($lang->tab_options_selected_style, $lang->tab_options_selected_style_desc, $form->generate_text_area('selected_tab_code', $selected_tab_code_value, array('id' => 'selected_tab_code', 'class' => 'codepress mybb', 'style' => 'width: 100%; height: 256px;')), 'selected_tab_code');
 		$form_container->output_row($lang->tab_options_visible, $lang->tab_options_visible_desc, $form->generate_yes_no_radio('visible', $visible_value));
@@ -186,6 +191,11 @@
 
 		if($mybb->request_method == "post")
 		{
+			if(!isset($mybb->input['my_post_key']) || $mybb->input['my_post_key'] != $mybb->post_code)
+			{
+				flash_message($lang->invalid_post_verify_code2, 'error');
+				admin_redirect("index.php?module=forum-mytabs");
+			}
 			/* Update settings. */
 			if(isset($mybb->input['enable_tabs']))
 			{
@@ -314,6 +324,11 @@
 		/* Show tab editing form. */
 		if($mybb->request_method == "post")
 		{
+			if(!isset($mybb->input['my_post_key']) || $mybb->input['my_post_key'] != $mybb->post_code)
+			{
+				flash_message($lang->invalid_post_verify_code2, 'error');
+				admin_redirect("index.php?module=forum-mytabs");
+			}
 			/* Edit selected tab. */
 			if(!empty($mybb->input['name']))
 			{
@@ -331,7 +346,7 @@
 					{
 						flash_message($lang->success_edit, 'success');
 						if(!empty($mybb->input['continue'])) {
-							admin_redirect("index.php?module=forum-mytabs&amp;do=edit&amp;id={$mybb->input['id']}");
+							admin_redirect("index.php?module=forum-mytabs&amp;do=edit&amp;id=" . (int)$mybb->input['id']);
 						} else {
 							admin_redirect("index.php?module=forum-mytabs");
 						}
@@ -365,7 +380,7 @@
 
 			$form_container->output_row($lang->tab_options_name.". <em>*</em>", $lang->tab_options_name_desc, $form->generate_text_box('name', $tab['name'], array('id' => 'name')));
 			$forums_edit_value = !empty($tab['forums']) ? explode(',', $tab['forums']) : array();
-			$form_container->output_row($lang->tab_options_forums, $lang->tab_options_forums_desc, $form->generate_forum_select("forums[]", $forums_edit_value, array('multiple' => 1)));
+			$form_container->output_row($lang->tab_options_forums, $lang->tab_options_forums_desc, $form->generate_forum_select("forums[]", $forums_edit_value, array('multiple' => 1, 'size' => 8)));
 			$form_container->output_row($lang->tab_options_style, $lang->tab_options_style_desc, $form->generate_text_area('tab_code', $tab['tab_code'], array('id' => 'tab_code', 'class' => 'codepress mybb', 'style' => 'width: 100%; height: 256px;')), 'tab_code');
 			$form_container->output_row($lang->tab_options_selected_style, $lang->tab_options_selected_style_desc, $form->generate_text_area('selected_tab_code', $tab['selected_tab_code'], array('id' => 'selected_tab_code', 'class' => 'codepress mybb', 'style' => 'width: 100%; height: 256px;')), 'selected_tab_code');
 			$form_container->output_row($lang->tab_options_visible, $lang->tab_options_visible_desc, $form->generate_yes_no_radio('visible', $tab['visible']));
@@ -430,6 +445,11 @@
 		}
 		else if(isset($mybb->input['do']) && $mybb->input['do'] == 'updateorders')
 		{
+			if(!isset($mybb->input['my_post_key']) || $mybb->input['my_post_key'] != $mybb->post_code)
+			{
+				flash_message($lang->invalid_post_verify_code2, 'error');
+				admin_redirect("index.php?module=forum-mytabs");
+			}
 			/* Update orders. */
 			if(!empty($mybb->input['disporder']) && is_array($mybb->input['disporder']))
 			{
@@ -465,7 +485,7 @@
 		{
 			while($tab = $db->fetch_array($query))
 			{
-				$form_container->output_cell("<strong>{$tab['name']}</strong>");
+				$form_container->output_cell("<strong>" . htmlspecialchars_uni($tab['name']) . "</strong>");
 
 				$form_container->output_cell("<input type=\"text\" name=\"disporder[".$tab['id']."]\" value=\"".$tab['order']."\" class=\"text_input align_center\" style=\"width: 80%; font-weight: bold;\" />", array("class" => "align_center"));
 

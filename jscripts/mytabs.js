@@ -26,7 +26,7 @@ function switchTab(tab, ajax)
 	if(ajax)
 	{
 		/* AJAX Code -- Start */
-		getPage('index.php?tab=' + tab + '&output-mytab-code=1&rand=' + Math.random());
+		getPage('xmlhttp.php?action=mytabs_switch&tab=' + tab);
 		/* AJAX Code -- End */
 	}
 	else

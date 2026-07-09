@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.1] — 2026-07-09
+
+### Security
+
+- **Fixed stored XSS in User CP tab options** — Tab names were output without `htmlspecialchars_uni()` escaping in the User CP "Default Tab" dropdown (`inc/plugins/mytabs.php:506`). An admin-created tab name containing HTML/JavaScript (e.g. `<script>alert(1)</script>`) would execute in the browser of any user visiting their User CP options page.
+- **Fixed stored XSS in admin tab listing** — Same unescaped output in the admin panel's tab listing table (`admin/modules/forum/mytabs.php:468`).
+- **Fixed CSRF protection on admin actions** — Only the `do=delete` action verified `my_post_key`. The `do=add`, `do=settings`, `do=edit`, and `do=updateorders` actions had no CSRF checks, allowing cross-site request forgery against authenticated admins. All four now verify the anti-CSRF token before processing state changes.
+- **Fixed raw `$mybb->input['id']` in admin redirect** — The edit action's success redirect interpolated unsanitized user input into the `Location` header (`admin/modules/forum/mytabs.php:349`). Now cast to `(int)`.
+- **Hardened SQL queries** — Three queries interpolated `$mybb->user['uid']` without an `(int)` cast (`inc/plugins/mytabs.php:187,480,529`). Now explicitly cast for defense-in-depth.
+
+### Changed
+
+- **Fast AJAX tab switching via `xmlhttp.php`** — Tab switches previously triggered a full `index.php` page load (all hooks, `build_forumbits()` across every forum) just to return a fragment. Moved to a dedicated `xmlhttp.php?action=mytabs_switch` endpoint that loads only `global.php` and runs `build_forumbits()` for the single requested tab. Response time drops from seconds to milliseconds on boards with many forums.
+- **Admin forum select now shows 8 rows** — The multi-select forum picker on Add/Edit tab forms was cramped at the browser default. Added `size="8"` so more forums are visible at once.
+
+### Fixed
+
+- **Unclosed `<div id="mytabs_full">`** — The opening wrapper div was unconditionally appended to `$forums` before checking whether tabs existed. On a fresh install with no tabs, the div was never closed, causing the page footer to render inside the unstyled wrapper and break the layout. `mytabs_forums()` now returns early when disabled or when no tabs exist.
+- **Missing admin language file** — `admin/modules/forum/mytabs.php` calls `$lang->load('mytabs')`, which MyBB resolves to `inc/languages/<lang>/admin/mytabs.lang.php`. The distribution only shipped the frontend language file.
+- **HTTP 500 in admin panel** — All PHP files had closing `?>` tags. Trailing whitespace after `?>` in a `require`d file causes premature output, breaking MyBB's admin headers. Removed `?>` from all PHP files.
+- **Uninitialized `$setting` array** — `mytabs_useroptions()` and `mytabs_save_useroptions()` read `$setting` without initializing it as an array first.
+- **Uninitialized `$tabselect`** — `mytabs_useroptions()` concatenated to `$tabselect` via `eval()` without initializing it.
+
+---
+
 ## [1.0.0] — 2026-06-26
 
 ### Rewrite for MyBB 1.8.35+ & PHP 8.0+
@@ -38,15 +63,6 @@ Previously published as v1.32 by FatalMessiah/Ethan. This release resets version
 - `empty()` used consistently instead of bare truthiness checks on settings values.
 - All legacy `\r\n` literal sequences in default settings converted to actual newlines for cleaner HTML output.
 - Version reset to **1.0.0**; new GUID generated.
-
-### Post-release fixes (2026-06-26)
-
-- **Fixed unclosed `<div id="mytabs_full">`** — The opening wrapper div was unconditionally appended to `$forums` before checking whether tabs existed. When the plugin was enabled but no tabs had been created yet (fresh install), the div was never closed, causing the page footer to render inside the unstyled wrapper and break the layout. The function now returns early when disabled or when no tabs exist, leaving the default forum listing intact.
-- **Fixed missing admin language file** — `admin/modules/forum/mytabs.php` calls `$lang->load('mytabs')`, which MyBB resolves to `inc/languages/<lang>/admin/mytabs.lang.php`. The distribution only shipped the frontend language file. Created `inc/languages/english/admin/mytabs.lang.php`.
-- **Fixed HTTP 500 in admin panel** — All PHP files had closing `?>` tags. Trailing whitespace after `?>` in a `require`d file causes premature output, which breaks MyBB's admin panel with "headers already sent" errors. Removed closing `?>` from `inc/plugins/mytabs.php`, `admin/modules/forum/mytabs.php`, and both language files.
-- **Fixed uninitialized `$setting` array** — `mytabs_useroptions()` and `mytabs_save_useroptions()` read `$setting` without initializing it as an array first, which could produce PHP warnings if the settings query returned no rows.
-- **Fixed uninitialized `$tabselect`** — `mytabs_useroptions()` concatenated to `$tabselect` via `eval()` without initializing it, potentially triggering a PHP warning.
-- **Removed unnecessary `require_once MYBB_ROOT.'inc/functions_themes.php'`** from the admin module — not needed by this module and an unnecessary point of failure.
 
 ---
 
