@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.1] — 2026-07-09
+## [1.0.2] — 2026-07-10
 
 ### Security
 
@@ -12,7 +12,7 @@
 
 ### Changed
 
-- **Fast AJAX tab switching via `xmlhttp.php`** — Tab switches previously triggered a full `index.php` page load (all hooks, `build_forumbits()` across every forum) just to return a fragment. Moved to a dedicated `xmlhttp.php?action=mytabs_switch` endpoint that loads only `global.php` and runs `build_forumbits()` for the single requested tab. Response time drops from seconds to milliseconds on boards with many forums.
+- **Improved AJAX tab switching speed** — Removed the cache-busting `&rand=` query parameter from AJAX tab requests. Browsers can now cache tab responses, making repeat visits to the same tab instant. For the best performance on large boards, use the non-AJAX (CSS-toggle) mode which pre-renders all tabs with zero round trips.
 - **Admin forum select now shows 8 rows** — The multi-select forum picker on Add/Edit tab forms was cramped at the browser default. Added `size="8"` so more forums are visible at once.
 
 ### Fixed
@@ -22,6 +22,13 @@
 - **HTTP 500 in admin panel** — All PHP files had closing `?>` tags. Trailing whitespace after `?>` in a `require`d file causes premature output, breaking MyBB's admin headers. Removed `?>` from all PHP files.
 - **Uninitialized `$setting` array** — `mytabs_useroptions()` and `mytabs_save_useroptions()` read `$setting` without initializing it as an array first.
 - **Uninitialized `$tabselect`** — `mytabs_useroptions()` concatenated to `$tabselect` via `eval()` without initializing it.
+- **Fixed deactivation wiping all data** — `mytabs_deactivate()` was dropping the `mytabs`, `mytabs_settings` tables and the `users.default_tab` column. Every deactivate/re-activate cycle destroyed all saved tabs and settings. Deactivation is now non-destructive; data persists across reactivations.
+
+---
+
+## [1.0.1] — 2026-07-09 (skipped)
+
+Introduced a `xmlhttp.php` endpoint for tab switching that proved unreliable in testing. Replaced by 1.0.2.
 
 ---
 

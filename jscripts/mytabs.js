@@ -26,7 +26,7 @@ function switchTab(tab, ajax)
 	if(ajax)
 	{
 		/* AJAX Code -- Start */
-		getPage('xmlhttp.php?action=mytabs_switch&tab=' + tab);
+		getPage('index.php?tab=' + tab + '&output-mytab-code=1');
 		/* AJAX Code -- End */
 	}
 	else
@@ -75,7 +75,7 @@ function getPage(url)
 	}
 	req.onreadystatechange = function()
 	{
-		if((req.readyState == 4) && (req.status == 200))
+		if((req.readyState == 4) && (req.status == 200) && req.responseText.length > 0)
 		{
 			document.getElementById('mytabs_full').innerHTML = req.responseText;
 		}

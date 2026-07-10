@@ -30,7 +30,6 @@
 	$plugins->add_hook("usercp_do_options_end", "mytabs_save_useroptions");
 	$plugins->add_hook("admin_forum_menu", "mytabs_menu");
 	$plugins->add_hook("admin_forum_action_handler", "mytabs_action_handler");
-	$plugins->add_hook("xmlhttp", "mytabs_xmlhttp");
 
 	function mytabs_info()
 	{
@@ -40,7 +39,7 @@
 			'website'		=> 'https://github.com/hisoka-root',
 			'author'		=> 'Ethan / FatalMessiah (maintained by hisoka)',
 			'authorsite'	=> 'https://github.com/hisoka-root',
-			'version'		=> '1.0.1',
+			'version'		=> '1.0.2',
 			'guid'			=> 'b7a85f25bf6b4058baadcc7ca66b147f'
 		);
 	}
@@ -129,25 +128,6 @@
 
 	function mytabs_deactivate()
 	{
-		global $mybb, $db;
-
-		/* Drop the tabs table. */
-		if ( $db->table_exists( 'mytabs' ) )
-		{
-			$db->drop_table( 'mytabs' );
-		}
-
-		/* Drop the tabs settings table. */
-		if ( $db->table_exists( 'mytabs_settings' ) )
-		{
-			$db->drop_table( 'mytabs_settings' );
-		}
-
-		/* Drop the user default tab option column. */
-		if ( $db->field_exists( 'default_tab', 'users' ) )
-		{
-			$db->drop_column('users', 'default_tab');
-		}
 	}
 
 	function mytabs_start()
@@ -342,6 +322,13 @@
 				$forums = "<!-- mytabs: start (ajax) -->\n<!-- mytabs_full_start --><div id=\"mytabs_full\">\n";
 				$forums .= "<div id=\"tab_navbar\">\n{$navbar}\n</div>\n<div id=\"tab_content\">\n{$body_content}\n</div>";
 				$forums .= "\n<!-- mytabs_full_end --></div>\n<!-- mytabs: end -->";
+			}
+
+			if(isset($mybb->input['output-mytab-code']))
+			{
+				$temp = str_replace('<!-- mytabs_full_start --><div id="mytabs_full">', '', $forums);
+				$temp2 = str_replace('<!-- mytabs_full_end --></div>', '', $temp);
+				die($temp2);
 			}
 		}
 		else
@@ -554,119 +541,4 @@
 	function mytabs_action_handler(&$action)
 	{
 		$action['mytabs'] = array('active' => 'mytabs', 'file' => 'mytabs.php');
-	}
-
-	function mytabs_xmlhttp()
-	{
-		global $db, $mybb;
-
-		if($mybb->input['action'] != 'mytabs_switch')
-			return;
-
-		$tab_id = isset($mybb->input['tab']) ? (int)$mybb->input['tab'] : 0;
-		if($tab_id < 1)
-			return;
-
-		$setting = array();
-		$query = $db->simple_select('mytabs_settings');
-		while($result = $db->fetch_array($query))
-		{
-			$setting[$result['name']] = $result['value'];
-		}
-
-		if(empty($setting['enabled']) || empty($setting['ajax']))
-			return;
-
-		$query = $db->simple_select('mytabs', '*', "id='{$tab_id}'");
-		$tab = $db->fetch_array($query);
-		if(!$tab)
-			return;
-
-		require_once MYBB_ROOT.'inc/functions_forumlist.php';
-		$forumpermissions = forum_permissions();
-
-		$noshow = array();
-		if(is_array($forumpermissions))
-		{
-			foreach($forumpermissions as $fid => $perms)
-			{
-				if(!$forumpermissions[$fid]['canview'])
-					$noshow[] = $fid;
-			}
-		}
-
-		$tab_query = $db->simple_select('mytabs', '*', '', array('order_by' => '`order`', 'order_dir' => 'asc'));
-
-		$tablist = '';
-		$body_content = '';
-
-		while($t = $db->fetch_array($tab_query))
-		{
-			if(!$t['visible'] && $t['id'] != $tab_id)
-				continue;
-
-			$name = htmlspecialchars_uni($t['name']);
-			$link_attr = "?tab={$t['id']}\" onclick=\"return switchTab('{$t['id']}', 'true');";
-
-			if($t['id'] == $tab_id)
-			{
-				$code_template = !empty($t['selected_tab_code']) ? $t['selected_tab_code'] : $setting['default_selected_tab_code'];
-				$code_template = str_replace(array('\\r\\n', '\\r', '\\n'), array("\r\n", "\r", "\n"), $code_template);
-				$tablist .= str_replace(array('{$link}', '{$name}'), array($link_attr, $name), $code_template);
-
-				if(is_array($forumpermissions))
-				{
-					foreach($forumpermissions as $fid => $perms)
-						$forumpermissions[$fid]['canview'] = 0;
-				}
-
-				$tab_forums = rtrim($t['forums']);
-				if(!empty($tab_forums))
-				{
-					$forum_ids = array_filter(explode(',', $tab_forums));
-					foreach($forum_ids as $fid)
-					{
-						$fid = (int)$fid;
-						if($fid > 0 && !in_array($fid, $noshow) && isset($forumpermissions[$fid]))
-						{
-							$forumpermissions[$fid]['canview'] = 1;
-
-							$parents = get_parent_list($fid);
-							if(!empty($parents))
-							{
-								$parent_ids = array_filter(explode(',', $parents));
-								foreach($parent_ids as $pid)
-								{
-									$pid = (int)$pid;
-									if($pid > 0 && !in_array($pid, $noshow) && isset($forumpermissions[$pid]))
-										$forumpermissions[$pid]['canview'] = 1;
-								}
-							}
-						}
-					}
-					$forum_list = build_forumbits();
-					$body_content = $forum_list['forum_list'];
-				}
-			}
-			else
-			{
-				$code_template = !empty($t['tab_code']) ? $t['tab_code'] : $setting['default_tab_code'];
-				$code_template = str_replace(array('\\r\\n', '\\r', '\\n'), array("\r\n", "\r", "\n"), $code_template);
-				$tablist .= str_replace(array('{$link}', '{$name}'), array($link_attr, $name), $code_template);
-			}
-		}
-
-		if(empty($tablist) || empty($body_content))
-			return;
-
-		$tablist_code = $setting['tab_list_code'];
-		$tablist_code = str_replace(array('\\r\\n', '\\r', '\\n'), array("\r\n", "\r", "\n"), $tablist_code);
-		$navbar = str_replace('{$tablist}', $tablist, $tablist_code);
-		$navbar = "<div id=\"tab_nav_{$tab_id}\" style=\"\">{$navbar}</div>";
-
-		$output = "<div id=\"tab_navbar\">\n{$navbar}\n</div>\n<div id=\"tab_content\">\n{$body_content}\n</div>";
-
-		header("Content-type: text/html; charset=UTF-8");
-		echo $output;
-		exit;
 	}
