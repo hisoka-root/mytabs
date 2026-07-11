@@ -79,8 +79,10 @@
 		}
 
 		/* Create default settings. */
-
-		$default_settings[] = array(
+		$query = $db->simple_select('mytabs_settings', 'id', '', array('limit' => 1));
+		if($db->num_rows($query) < 1)
+		{
+			$default_settings[] = array(
 			'id' => 1,
 			'name' => 'enabled',
 			'value' => '1'
@@ -117,6 +119,7 @@
 		);
 
 		$db->insert_query_multiple('mytabs_settings', $default_settings);
+		}
 
 		/* Create user default tab option column. */
 

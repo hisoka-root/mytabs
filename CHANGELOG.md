@@ -23,6 +23,7 @@
 - **Uninitialized `$setting` array** — `mytabs_useroptions()` and `mytabs_save_useroptions()` read `$setting` without initializing it as an array first.
 - **Uninitialized `$tabselect`** — `mytabs_useroptions()` concatenated to `$tabselect` via `eval()` without initializing it.
 - **Fixed deactivation wiping all data** — `mytabs_deactivate()` was dropping the `mytabs`, `mytabs_settings` tables and the `users.default_tab` column. Every deactivate/re-activate cycle destroyed all saved tabs and settings. Deactivation is now non-destructive; data persists across reactivations.
+- **Fixed HTTP 500 on reactivation** — Because deactivation no longer drops tables, `mytabs_activate()` would try to re-insert default settings with the same primary keys, causing a duplicate-entry MySQL error. Default settings are now only inserted when the settings table is empty (fresh install).
 
 ---
 
